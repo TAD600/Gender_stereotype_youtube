@@ -130,5 +130,3 @@ def get_video_top_level_comments(api_key, channel_id, video_id, max_results=100)
     return video_comments_data
 
 
-
-

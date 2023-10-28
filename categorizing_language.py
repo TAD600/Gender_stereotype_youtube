@@ -2,6 +2,9 @@
 def main():
     pass
 
+import time
+import pandas as pd
+from langdetect import detect
 
 from langdetect import detect
 

@@ -8,22 +8,683 @@ date: "2023-10-22"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.dictionaries", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textplots", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("stm", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("tidyverse", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("zoo", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library(ggplot2)
+library(viridis)
 ```
 
-## Including Plots
+```{r}
+# Loading the data:
+e <- read.csv('with_sentiment.csv', stringsAsFactors = F)
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Data frame
+head(e, 5)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+table(e$Gender)
+```
+
+
+
+```{r}
+library(dplyr)
+
+# Making Gender dummy: Female =1, Male = 0
+e <- e %>%
+  mutate(gender = ifelse(Gender %in% c("female singer", "female painter", "female dancer", "female chef", "female actor"), 1, 0))
+head(e, 5)
+```
+
+```{r}
+
+# Making art type by gender dummy:
+# create a new column in ce based on the Gender column
+e$type_gender <- ifelse(e$Gender == "female singer", 1,
+                     ifelse(e$Gender == "male singer", 2,
+                            ifelse(e$Gender == "female actor", 3, 
+                                   ifelse(e$Gender == "male actor", 4, 
+                                          ifelse(e$Gender == "female dancer", 5, 
+                                                 ifelse(e$Gender == "male dancer", 6,
+                                                        ifelse(e$Gender == "female painter", 7,
+                                                               ifelse(e$Gender == "male painter", 8,
+                                                                      ifelse(e$Gender == "female chef", 9,
+                                                                             ifelse(e$Gender == "male chef", 10, NA))))))))))
+                                    
+```
+
+```{r}
+table(e$type_gender)
+```
+
+
+
+```{r}
+# Making language dummy: English = 0, Bangla = 1
+
+e <- e %>%
+  mutate(language = ifelse(Language %in% c("Bangla"), 1, 0))
+```
+
+```{r}
+# check the new column
+table(e$language) 
+# 105453 + 84057
+```
+
+
+```{r}
+
+# Sample data frame
+#e <- data.frame(Gender = c("female singer", "male singer", "female actor", "male chef", "unknown"))
+
+# Create the e$type column based on Gender
+e$arttype <- ifelse(e$Gender == "female singer", 5,
+                 ifelse(e$Gender == "male singer", 5,
+                        ifelse(e$Gender == "female actor", 2, 
+                               ifelse(e$Gender == "male actor", 2, 
+                                      ifelse(e$Gender == "female dancer", 3, 
+                                             ifelse(e$Gender == "male dancer", 3,
+                                                    ifelse(e$Gender == "female painter", 4,
+                                                           ifelse(e$Gender == "male painter", 4,
+                                                                  ifelse(e$Gender == "female chef", 1,
+                                                                         ifelse(e$Gender == "male chef", 1, NA))))))))))
+
+
+```
+
+```{r}
+table(e$arttype)
+```
+```{r}
+75977+5924+12637+23716+71256 
+```
+
+
+
+```{r}
+e$Art <- ifelse(e$arttype == 5, "singer",
+                 ifelse(e$arttype == 2, "actor",
+                        ifelse(e$arttype == 3, "dancer", 
+                               ifelse(e$arttype == 4, "painter", 
+                                      ifelse(e$arttype == 1, "chef", NA)))))
+```
+
+```{r}
+table(e$Art)
+```
+
+
+```{r}
+write.csv(e, "FINAL2.csv", row.names = FALSE)
+```
+
+
+**VADER sentiment analysis is done in Python after preparing the dataset. From here we begin topic modeling.**
+
+
+```{r}
+ggplot(e, aes(x = Art, y = compound, color = factor(gender))) +
+  geom_boxplot(position = position_dodge(preserve = 'single')) +
+  labs(x = "Art Type", y = "Sentiment Score", color = "Gender") + 
+  scale_color_discrete(labels = c('Male', 'Female')) + 
+  stat_summary(fun.y = "mean")
+
+  #scale_fill_viridis_d(option = "A", begin = 0.3, end = 0.8) 
+```
+
+In a box plot, if the first quartile (Q1) and the median are displayed as the same line, it means that the data distribution is highly skewed. The reason for this is that the first quartile (Q1) represents the 25th percentile of the data, and the median represents the 50th percentile. In a symmetric or normally distributed dataset, the median would typically be somewhere in the middle of the interquartile range (IQR), and you'd see a visible gap between the two lines in the box plot.
+
+However, when the Q1 and median lines coincide, it suggests that the lower half of the data is highly concentrated in a narrow range, and the distribution is not symmetric. This is often seen in right-skewed or positively skewed data, where there are some extreme values on the right side of the distribution that stretch the upper whisker, and the lower part of the distribution is more compact.
+
+Conversely, in a left-skewed or negatively skewed distribution, you might see the opposite effect, with the third quartile (Q3) and the median lines coinciding.
+
+Box plots are useful for visualizing the central tendency and spread of data and for identifying skewness and the presence of outliers in a dataset. When the Q1 and median lines coincide, it's a clear visual indicator that your data distribution has a non-symmetric shape and potential outliers on one side of the distribution.
+`
+
+
+```{r}
+#my_data$my_variable <- log(my_data$my_variable)
+e$logcompound <- log(e$compound)
+#hist(e$logcompound)
+```
+
+```{r}
+library(tidyverse)
+# Fit the OLS regression model
+model1 <- lm(compound ~ gender, data = e)
+model2 <- lm(compound ~ gender + Art, data = e)
+model3 <- lm(compound ~ language + gender + Art, data = e)
+
+# Summarize the regression results
+summary(model1)
+summary(model2)
+summary(model3)
+```
+The "Intercept" is the estimated value of the dependent variable when all other independent variables are zero.
+"language" has an estimated coefficient of approximately 0.121, which means that for each unit increase in the "language" variable (from 0 to 1), the dependent variable "compound" is expected to increase by 0.121 units.
+"gender" has an estimated coefficient of approximately -0.075, which means that for each unit increase in the "gender" variable (from 0 to 1), the dependent variable "compound" is expected to decrease by 0.075 units.
+"Art" is a categorical variable with multiple levels (chef, dancer, painter, and singer). Each level of "Art" is compared to the reference level (which is not shown in your output). For example, "Artdancer" has an estimated coefficient of approximately 0.074, which means that being an "Artdancer" is associated with an increase of 0.074 units in the "compound" compared to the reference level.
+Significance: The p-values associated with each coefficient test whether the effect of each independent variable is statistically significant. In your case, all the coefficients, except "Artchef," have very low p-values (typically less than 0.05), indicating that they are statistically significant. This suggests that "language," "gender," and the different levels of "Art" are associated with the "compound" in a statistically significant way.
+
+R-squared: The multiple R-squared value (0.0405) indicates the proportion of variance in the dependent variable "compound" explained by the independent variables. Adjusted R-squared (0.04047) adjusts the R-squared for the number of predictors in the model.
+
+F-statistic: The F-statistic tests whether the overall model is statistically significant. In your case, the p-value for the F-statistic is very close to zero, indicating that the model is statistically significant.
+
+Overall, it appears that the model is statistically significant, and the independent variables "language," "gender," and the levels of "Art" have significant associations with the dependent variable "compound."
+
+
+In your case, with an Adjusted R-squared of 0.04047, it means that about 4.05% of the variance in the dependent variable "compound" is explained by the independent variables in your model. Whether this is considered "good" depends on the specific objectives of your analysis. In some fields, a high Adjusted R-squared might be desirable, while in others, such as social sciences, where human behavior is complex and difficult to predict, lower values can be typical.
+
+In summary, the interpretation of a "good" Adjusted R-squared value is relative and should be made in the context of your research goals, the significance of the relationships, and comparisons to alternative models.
+
+***
+With a sample size of 189,000 comments from YouTube, you have a very large dataset. In the context of text sentiment analysis, it's common for the Adjusted R-squared value to be relatively low. Text sentiment analysis often involves many unique and complex text patterns, which can make it challenging to explain a large portion of the variance in sentiment scores using traditional regression models.
+
+In this context, an Adjusted R-squared value of 0.04047 (4.05%) is not unexpected and may still be meaningful, especially if the relationships between your independent variables (language, gender, and art) and sentiment scores are theoretically and practically significant.
+
+It's crucial to consider the specific goals and context of your analysis. In text sentiment analysis, the focus is often on understanding the influence of variables on sentiment, even if the overall model fit (Adjusted R-squared) is relatively low. Additionally, a low Adjusted R-squared value does not necessarily mean that the relationships you've identified are unimportant; it merely indicates that they explain a relatively small proportion of the variance in sentiment scores.
+
+***
+
+The regression results you've provided suggest that you have a model with sentiment score (compound) as the dependent variable and three independent variables: language, gender, and Art (with specific categories within Art, such as Artchef, Artdancer, Artpainter, and Artsinger).
+
+Here's an interpretation of the key findings:
+
+Coefficients: The coefficients in the output show the estimated effect of each independent variable on the sentiment score (compound).
+
+The Intercept (constant) is 0.274966.
+For each unit increase in the 'language' variable, there is an estimated increase of 0.120722 in the sentiment score.
+For each unit increase in the 'gender' variable, there is an estimated decrease of 0.074962 in the sentiment score.
+The 'Art' variable is categorical, with multiple categories (Artchef, Artdancer, Artpainter, and Artsinger). The coefficients for these categories show the estimated differences in sentiment score compared to the baseline category (which is not explicitly shown).
+Significance: The 't value' and 'Pr(>|t|)' (p-value) columns provide information about the statistical significance of each coefficient. In your results, all the coefficients are highly statistically significant because the p-values are very close to zero (much less than the standard significance level of 0.05).
+
+R-squared: The R-squared value is a measure of the goodness of fit of the model. In your model, the multiple R-squared is 0.0405, which means that the independent variables explain about 4.05% of the variance in the dependent variable (sentiment score). This is a relatively low value, suggesting that the model doesn't explain a large proportion of the variability in sentiment scores.
+
+Adjusted R-squared: The adjusted R-squared is a modification of the R-squared value that accounts for the number of independent variables in the model. It is often preferred when comparing models with different numbers of variables. In your case, the adjusted R-squared is very close to the multiple R-squared, which implies that adding the independent variables didn't significantly improve the model's explanatory power.
+
+Residual Standard Error: The residual standard error (0.3598) indicates the average magnitude of the residuals (the differences between the observed and predicted values). Smaller values of this statistic indicate a better fit of the model to the data.
+
+Overall, your model indicates that language and gender have statistically significant effects on sentiment scores, while the specific categories within the 'Art' variable also have statistically significant effects compared to the baseline category. However, the model's low R-squared values suggest that there are other factors or unexplained variability in the sentiment scores that are not accounted for by this model. You may want to consider exploring additional variables or alternative models to improve the model's explanatory power.
+
+
+```{r}
+library(car)
+```
+
+```{r}
+#vif(model1)
+vif(model2)
+vif(model3)
+```
+
+```{r}
+library(lmtest)
+
+# BPG test for heteroscedasticity
+bptest(model1)
+bptest(model2)
+bptest(model3)
+
+```
+
+```{r}
+#resettest(model1, power =2:3, type ="regressor", data = e)
+#resettest(model2, type ="regressor", data = e)
+#resettest(model3, power =2:3, type ="regressor", data = e)
+```
+
+```{r}
+# interaction between gender and language
+md <- lm(formula = compound ~ language * gender + Art, data = e)
+
+summary(md)
+```
+Interaction between 'language' and 'gender':
+This interaction term captures whether the relationship between language and sentiment score differs for different genders. It accounts for the possibility that the effect of language on sentiment may be different for males and females.
+
+```{r}
+library("quanteda")
+library("stm")
+library("tidyverse")
+library("stringi")
+library("lubridate")
+```
+
+
+```{r}
+combined <- read.csv('FINAL2.csv', stringsAsFactors = F)
+#corpus_combined <- corpus(combined, text_field = "Translated_Comments")
+
+# Assuming 'e' is your data frame
+combined$date <- dmy(combined$date)  # Use 'dmy' to specify the date format
+combined$day_of_year <- yday(combined$date)
+
+
+corpus_combined <- corpus(combined$Translated_Comments,
+                       docvars = combined[,c("date", "day_of_year",
+                                       "gender", "Art")])
+
+# Transforming gender and party into factors
+combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
+combined$Art <- factor(combined$Art) # factoring is necessary for multiple category variables
+
+```
+`
+
+
+
+```{r}
+# apply the function to your text data
+corpus_combined <- corpus_combined %>%
+  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE, remove_url = TRUE) %>%
+  tokens_remove(stopwords(source = "smart")) %>% 
+  tokens_wordstem() %>%
+  tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
+
+# Tokenisation 
+toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
+               remove_numbers = TRUE, remove_url = TRUE) %>%
+        tokens_tolower() %>%
+        tokens_remove(c(stopwords(source = "smart"), 'apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna' )) %>% 
+        tokens_wordstem()
+
+# Document Feature Matrix
+dfm_com <- dfm(toks_com) %>% 
+       dfm_trim(min_termfreq = 30)
+
+#Adding the gender column to the dataframe:
+#dfm_com$gender <- combined$gender
+
+# Keyness Analysis for female corpus:
+keyness_posts <- textstat_keyness(dfm_com, target = dfm_com$gender == 1)
+keyness_posts1 <- textstat_keyness(dfm_com, target = dfm_com$gender == 0)
+textplot_keyness(keyness_posts)
+```
+
+
+```{r fig1, fig.height = 3, fig.width = 3}
+#kwic(corpus_combined, "beauty", window=10)[1:5,]
+textplot_wordcloud(keyness_posts1, rotation = 0.25, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 100)
+```
+
+```{r fig1, fig.height = 3, fig.width = 3}
+textplot_wordcloud(keyness_posts, rotation = 0.25, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 100)
+```
+
+```{r}
+gender_docvar <- docvars(dfm_com)$gender
+```
+
+
+```{r}
+dfm_gender_0 <- dfm_com[gender_docvar == 0, ]
+dfm_gender_1 <- dfm_com[gender_docvar == 1, ]
+```
+
+```{r}
+textplot_xray(kwic(corpus_combined, "beauti"), scale="relative")
+```
+
+```{r}
+stm_input <- convert(dfm_com, to = "stm")
+```
+
+
+```{r}
+stmodel2 <- stm(documents = stm_input$documents, 
+                vocab = stm_input$vocab,
+                K = 30, 
+                prevalence =~ gender + s(day_of_year),
+               #Hypothesis: We expect that party and day of the year have effect on discussion of certain topics. Note that we don't have dependent variable here. 
+               data = stm_input$meta, 
+               verbose = FALSE)
+```
+
+
+
+```{r}
+# Reference: https://stackoverflow.com/questions/47479522/how-to-create-a-grouped-boxplot-in-r
+#ggplot(e, aes(x = Art, y = compound, fill = factor(gender))) +
+#  geom_boxplot(position = position_dodge(preserve = 'single')) +
+ # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
+ # scale_fill_viridis_d(option = "A", begin = 0.4, end = 0.7) + stat_summary(fun.y="mean")
+```
+
+```{r}
+#ggplot(e, aes(x = Art, y = compound)) +
+#  geom_boxplot(aes(fill = factor(gender)), position = position_dodge(preserve = 'single')) +
+ # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
+ # scale_fill_viridis_d(option = "A", begin = 0.4, end = 0.7) +
+  #stat_summary(aes(color = factor(gender)), fun.y = "mean")
+
+```
+
+
+```{r}
+#library(ggplot2)
+
+# Your existing code for the box plot
+#p <- ggplot(e, aes(x = Art, y = compound, color = factor(gender))) +
+ # geom_boxplot(position = position_dodge(preserve = 'single')) +
+ # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
+ # scale_fill_viridis_d(option = "C", begin = 0.3, end = 0.8)
+
+# Add scatter points for means and individual data points
+#p + geom_point(stat = "summary", fun.y = "mean", shape = 19, size = 3, position = #position_dodge(width = 0.75)) +
+#  geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.1), shape = 1, size = 2)
+
+```
+
+```{r}
+library("quanteda")
+library("stm")
+library("tidyverse")
+library("stringi")
+library("lubridate")
+```
+
+```{r}
+# Assuming 'e' is your data frame
+combined$date <- dmy(combined$date)  # Use 'dmy' to specify the date format
+combined$day_of_year <- yday(combined$date)
+```
+
+```{r}
+combined[1:5,]
+```
+
+
+
+
+```{r}
+# Transforming gender and party into factors
+combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
+combined$Art <- factor(combined$Art) # factoring is necessary for multiple category variables
+
+```
+
+
+```{r}
+# Assuming 'my_corpus' is your quanteda corpus
+# Check the docvars for the first few documents in the corpus
+combined[1:5, ]
+
+```
+
+
+```{r}
+comment_corpus <- corpus(combined$Translated_Comments,
+                       docvars = combined[,c("date", "day_of_year",
+                                       "gender", "Art")])
+```
+
+```{r}
+# apply the function to your text data
+comment_corpus <- comment_corpus %>%
+  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE, remove_url = TRUE) %>%
+  tokens_remove(stopwords(source = "smart")) %>% 
+  tokens_wordstem() %>%
+  tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
+
+# Tokenisation 
+toks_com <- tokens(comment_corpus, remove_punct = TRUE, remove_symbols = TRUE, 
+               remove_numbers = TRUE, remove_url = TRUE) %>%
+        tokens_tolower() %>%
+        tokens_remove(c(stopwords(source = "smart"), 'apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna' )) %>% 
+        tokens_wordstem()
+
+# Document Feature Matrix
+dfm_com <- dfm(toks_com) %>% 
+       dfm_trim(min_termfreq = 30)
+
+```
+
+
+
+
+```{r}
+comments <- comment_corpus %>% 
+  tokens(remove_punct = TRUE, remove_numbers = TRUE, remove_symbols = TRUE,
+         remove_url = TRUE) %>%
+        tokens_remove(c('apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy')) %>% tokens_ngrams(n = 1:2) %>% dfm() %>% dfm_trim(min_termfreq = 5)
+comments
+```
+
+```{r}
+dfm_com <- dfm(comments) %>% 
+       dfm_trim(min_termfreq = 20)
+```
+
+
+
+
+```{r fig1, fig.height = 5, fig.width = 5}
+textplot_wordcloud(dfm_com, rotation = 0.25, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 300)
+```
+
+```{r}
+dfm_com$gender <- e$gender
+```
+
+
+
+```{r}
+# Keyness Analysis for female corpus:
+#keyness_posts <- textstat_keyness(comments_dfm, target = comments_dfm$gender == 0)
+#textplot_keyness(keyness_posts)
+# Keyness Analysis for male corpus:
+keyness_posts <- textstat_keyness(dfm_com, target = comments_dfm$gender == 1)
+textplot_keyness(keyness_posts)
+```
+
+
+
+
+
+```{r}
+stm_input <- convert(comments_dfm, to = "stm")
+```
+
+
+```{r}
+stm_input$meta
+```
+
+
+```{r}
+stmodel2 <- stm(documents = stm_input$documents, 
+                vocab = stm_input$vocab,
+                K = 30, 
+                prevalence =~ gender,
+               #Hypothesis: We expect that party and day of the year have effect on discussion of certain topics. Note that we don't have dependent variable here. 
+               data = stm_input$meta, 
+               verbose = FALSE)
+```
+
+```{r fig1, fig.height = 3, fig.width = 4}
+plot(stmodel2)
+```
+
+
+
+
+```{r}
+effect_estimates <- estimateEffect(1:10 ~ gender, stmodel1, meta = stm_input$meta)
+```
+
+```{r}
+plot(effect_estimates, covariate = "gender", topics = c(2, 8, 6),
+     model = stmodel1, method = "difference",
+     cov.value1 = "Female", cov.value2 = "Male",
+     xlab = "More Male ... More Female", 
+     main = "Male and Female",
+     xlim = c(-.1, .1), labeltype = "custom", 
+     custom.labels = c("song", "appearance", "good"))
+```
+
+
+
+
+
+```{r}
+# Corpus
+corpus_e <- corpus(e, text_field = "Translated_Comments")
+
+# Number of tokens and types
+ntoken(corpus_e) %>% sum()
+ntype(corpus_e) %>% sum()
+```
+
+```{r}
+# Male corpus
+corpus_m_e<- corpus_e[corpus_e$gender == 0, ]
+# Tokenisation 
+corpus_m_e <- tokens(corpus_m_e) 
+toks_m <- tokens(corpus_m_e, remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE) %>% 
+        tokens_remove(c(stopwords(source = "smart"), '#39', 'ur')) %>% 
+        tokens_wordstem()
+
+
+# Document Feature Matrix
+dfm_m <- dfm(toks_m) %>% 
+       dfm_trim(min_termfreq = 2)
+textplot_wordcloud(dfm_m, rotation = 0.35, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 200)
+```
+
+```{r}
+corpus_f_e <- corpus_e[corpus_e$gender == 1, ]
+# Tokenisation 
+corpus_f_e <- tokens(corpus_f_e) 
+toks_f <- tokens(corpus_f_e, remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE) %>% 
+        tokens_remove(c(stopwords(source = "smart"), '#39', 'ur')) %>% 
+        tokens_wordstem()
+
+
+
+# Document Feature Matrix
+dfm_f <- dfm(toks_f) %>% 
+       dfm_trim(min_termfreq = 2)
+textplot_wordcloud(dfm_f, rotation = 0.35, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 200)
+```
+
+
+
+```{r}
+# Top features
+top_words <- tokens(corpus_e, remove_punct = TRUE, remove_symbols = TRUE,
+                    remove_numbers = TRUE) %>% 
+             tokens_tolower() %>% dfm()
+top_features <- as.data.frame(topfeatures(top_words, 500)) 
+top_features <- top_features %>% 
+                mutate(count = `topfeatures(top_words, 500)`,
+                       word = rownames(top_features))
+
+# Plotting
+word.plot <- ggplot(data = top_features, 
+                    aes(x = 1:500, y = log(count), label = word)) +
+             geom_line() + 
+             geom_text(size = 2.5, hjust = 0, vjust = 0, nudge_x = 0.5) +
+             labs(x = "word", y = "log(count)") + theme_classic()
+```
+
+```{r}
+word.plot
+```
+
+Zipf’s Law is a statistical distribution in certain data sets, such as words in a linguistic corpus, in which the frequencies of certain words are inversely proportional to their ranks. Named for linguist George Kingsley Zipf, who around 1935 was the first to draw attention to this phenomenon, the law examines the frequency of words in natural language and how the most common word occurs twice as often as the second most frequent word, three times as often as the subsequent word and so on until the least frequent word. The word in the position n appears 1/n times as often as the most frequent one.
+
+When words are ranked according to their frequencies in a large enough collection of texts and then the frequency is plotted against the rank, the result is a logarithmic curve. (Or if you graph on a log scale, the result is a straight line.)
+
+The most common word in English is “the,” which appears about one-tenth of the time in a typical text; the next most common word (rank 2) is “of,” which appears about one-twentieth of the time. In this type of distribution, frequency declines sharply as the rank number increases, so a small number of items appear very often, and a large number rarely occur.
+
+A Zipfian distribution of words is universal in natural language: It can be found in the speech of children less than 32 months old as well as in the specialized vocabulary of university textbooks. Studies show that this phenomenon also applies in nearly every language.
+
+
+
+```{r}
+# define a function to remove emojis
+remove_emoji <- function(x) {
+  gsub(pattern = "[\U0001F600-\U0001F6FF]", "", x)
+}
+
+# apply the function to your text data
+corpus_f_e <- corpus_f_e %>%
+  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE, remove_url = TRUE) %>%
+  tokens_tolower() %>%
+  tokens_remove(stopwords(source = "smart")) %>% 
+  tokens_wordstem() %>%
+  tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
+
+# Tokenisation 
+toks_f <- tokens(corpus_f_e, remove_punct = TRUE, remove_symbols = TRUE, 
+               remove_numbers = TRUE, remove_url = TRUE) %>%
+        tokens_tolower() %>%
+        tokens_remove(c(stopwords(source = "smart"), '#39', 'ur', 'apnar')) %>% 
+        tokens_wordstem()
+
+# Document Feature Matrix
+dfm_f <- dfm(toks_f) %>% 
+       dfm_trim(min_termfreq = 20)
+
+```
+
+
+## topic modeling
+
+```{r}
+# converting the data frame into stm object, 
+stm_f <- convert(dfm_f, to = "stm")
+stm_f
+```
+
+```{r}      
+stmodel_f <- stm(documents = stm_f$documents, vocab = stm_f$vocab,
+                     K = 20, prevalence =~ gender,
+               #Hypothesis: We expect that party and day of the year have effect on discussion of certain topics. Note that we don't have dependent variable here. 
+               data = stm_f$meta, verbose = FALSE)
+?stm
+```
+
+
+```{r}
+plot(stmodel_f)
+```
+
+```{r}
+cloud(stmodel_f, topic = 2, scale = c(2,.25)) #appearance
+cloud(stmodel_f, topic = 6, scale = c(2,.25)) #encouragement
+cloud(stmodel_f, topic = 8, scale = c(2,.25)) #food
+```
+```{r}
+effect_estimates1 <- estimateEffect(1:10 ~ gender, stmodel_f, meta = stm_f$meta)
+```
+
+```{r}
+plot(effect_estimates1, covariate = "gender", topics = c(2, 6, 8),
+     model = stmodel_f, method = "difference",
+     cov.value1 = "male", cov.value2 = "female",
+     xlab = "More female ... More male", 
+     main = "Democrats and Republicans",
+     xlim = c(-.1, .1), labeltype = "custom", 
+     custom.labels = c("appearance", "Encouragement",
+                       "Food"))
+```
+

@@ -1,0 +1,74 @@
+---
+title: "dataset_preparing"
+output: html_document
+date: "2023-10-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.dictionaries", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textplots", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("stm", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("tidyverse", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("zoo", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+```
+
+```{r}
+e <- read.csv('with_sentiment.csv', stringsAsFactors = F)
+# Making Gender dummy: Female =1, Male = 0
+e <- e %>%
+  mutate(gender = ifelse(Gender %in% c("female singer", "female painter", "female dancer", "female chef", "female actor"), 1, 0))
+# Making art type by gender dummy:
+e$type_gender <- ifelse(e$Gender == "female singer", 1,
+                     ifelse(e$Gender == "male singer", 2,
+                            ifelse(e$Gender == "female actor", 3, 
+                                   ifelse(e$Gender == "male actor", 4, 
+                                          ifelse(e$Gender == "female dancer", 5, 
+                                                 ifelse(e$Gender == "male dancer", 6,
+                                                        ifelse(e$Gender == "female painter", 7,
+                                                               ifelse(e$Gender == "male painter", 8,
+                                                                      ifelse(e$Gender == "female chef", 9,
+                                                                             ifelse(e$Gender == "male chef", 10, NA))))))))))
+
+# Making language dummy: English = 0, Bangla = 1
+e <- e %>%
+  mutate(language = ifelse(Language %in% c("Bangla"), 1, 0))
+
+# Create the e$type column based on Gender
+e$arttype <- ifelse(e$Gender == "female singer", 5,
+                 ifelse(e$Gender == "male singer", 5,
+                        ifelse(e$Gender == "female actor", 2, 
+                               ifelse(e$Gender == "male actor", 2, 
+                                      ifelse(e$Gender == "female dancer", 3, 
+                                             ifelse(e$Gender == "male dancer", 3,
+                                                    ifelse(e$Gender == "female painter", 4,
+                                                           ifelse(e$Gender == "male painter", 4,
+                                                                  ifelse(e$Gender == "female chef", 1,
+                                                                         ifelse(e$Gender == "male chef", 1, NA))))))))))
+
+e$Art <- ifelse(e$arttype == 5, "singer",
+                 ifelse(e$arttype == 2, "actor",
+                        ifelse(e$arttype == 3, "dancer", 
+                               ifelse(e$arttype == 4, "painter", 
+                                      ifelse(e$arttype == 1, "chef", NA)))))
+
+write.csv(e, "FINAL2.csv", row.names = FALSE)
+```
+
+# Box plot
+```{r}
+ggplot(e, aes(x = Art, y = compound, color = factor(gender))) +
+  geom_boxplot(position = position_dodge(preserve = 'single')) +
+  labs(x = "Art Type", y = "Sentiment Score", color = "Gender") + 
+  scale_color_discrete(labels = c('Male', 'Female')) + 
+  stat_summary(fun.y = "mean")
+```
+

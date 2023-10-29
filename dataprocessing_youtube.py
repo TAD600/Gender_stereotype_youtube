@@ -9,6 +9,8 @@ from textblob import Word
 import re
 from nltk.corpus import stopwords
 import spacy
+from bs4 import BeautifulSoup
+
 
 def lowercase_strings(text):
     """
@@ -132,4 +134,18 @@ def lemmatize_with_space(text):
         return text
 
 
+def remove_html_tags(text):
+    soup = BeautifulSoup(text, 'html.parser')
+    return soup.get_text()
 
+# parsing date time 
+com['time'] = pd.to_datetime(com['Comment Date'], format='%Y-%m-%dT%H:%M:%SZ', errors='coerce')
+
+#dropping the existing index
+com.reset_index(drop=True, inplace=True)
+
+# removing the duplicates
+comment = comment.drop_duplicates(subset='Comments')
+
+# Remove URLs
+comment['Comments'] = comment['Comments'].apply(lambda x: re.sub(r"http\S+", "", str(x)))

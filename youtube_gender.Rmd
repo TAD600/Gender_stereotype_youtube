@@ -9,6 +9,18 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+#library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+#library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library(quanteda)
+library(quanteda.textstats)
+library("stringi")
+library("lubridate")
+library(e1071)
+```
+
+
+
+```{r}
 library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
 library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
 library("quanteda.dictionaries", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
@@ -20,139 +32,10 @@ library(ggplot2)
 library(viridis)
 ```
 
-```{r}
-# Loading the data:
-e <- read.csv('with_sentiment.csv', stringsAsFactors = F)
-
-# Data frame
-head(e, 5)
-```
-
-```{r}
-table(e$Gender)
-```
-
-
-
-```{r}
-library(dplyr)
-
-# Making Gender dummy: Female =1, Male = 0
-e <- e %>%
-  mutate(gender = ifelse(Gender %in% c("female singer", "female painter", "female dancer", "female chef", "female actor"), 1, 0))
-head(e, 5)
-```
-
-```{r}
-
-# Making art type by gender dummy:
-# create a new column in ce based on the Gender column
-e$type_gender <- ifelse(e$Gender == "female singer", 1,
-                     ifelse(e$Gender == "male singer", 2,
-                            ifelse(e$Gender == "female actor", 3, 
-                                   ifelse(e$Gender == "male actor", 4, 
-                                          ifelse(e$Gender == "female dancer", 5, 
-                                                 ifelse(e$Gender == "male dancer", 6,
-                                                        ifelse(e$Gender == "female painter", 7,
-                                                               ifelse(e$Gender == "male painter", 8,
-                                                                      ifelse(e$Gender == "female chef", 9,
-                                                                             ifelse(e$Gender == "male chef", 10, NA))))))))))
-                                    
-```
-
-```{r}
-table(e$type_gender)
-```
-
-
-
-```{r}
-# Making language dummy: English = 0, Bangla = 1
-
-e <- e %>%
-  mutate(language = ifelse(Language %in% c("Bangla"), 1, 0))
-```
-
-```{r}
-# check the new column
-table(e$language) 
-# 105453 + 84057
-```
-
-
-```{r}
-
-# Sample data frame
-#e <- data.frame(Gender = c("female singer", "male singer", "female actor", "male chef", "unknown"))
-
-# Create the e$type column based on Gender
-e$arttype <- ifelse(e$Gender == "female singer", 5,
-                 ifelse(e$Gender == "male singer", 5,
-                        ifelse(e$Gender == "female actor", 2, 
-                               ifelse(e$Gender == "male actor", 2, 
-                                      ifelse(e$Gender == "female dancer", 3, 
-                                             ifelse(e$Gender == "male dancer", 3,
-                                                    ifelse(e$Gender == "female painter", 4,
-                                                           ifelse(e$Gender == "male painter", 4,
-                                                                  ifelse(e$Gender == "female chef", 1,
-                                                                         ifelse(e$Gender == "male chef", 1, NA))))))))))
-
-
-```
-
-```{r}
-table(e$arttype)
-```
-```{r}
-75977+5924+12637+23716+71256 
-```
-
-
-
-```{r}
-e$Art <- ifelse(e$arttype == 5, "singer",
-                 ifelse(e$arttype == 2, "actor",
-                        ifelse(e$arttype == 3, "dancer", 
-                               ifelse(e$arttype == 4, "painter", 
-                                      ifelse(e$arttype == 1, "chef", NA)))))
-```
-
-```{r}
-table(e$Art)
-```
-
-
-```{r}
-write.csv(e, "FINAL2.csv", row.names = FALSE)
-```
-
-
-**VADER sentiment analysis is done in Python after preparing the dataset. From here we begin topic modeling.**
-
-
-```{r}
-ggplot(e, aes(x = Art, y = compound, color = factor(gender))) +
-  geom_boxplot(position = position_dodge(preserve = 'single')) +
-  labs(x = "Art Type", y = "Sentiment Score", color = "Gender") + 
-  scale_color_discrete(labels = c('Male', 'Female')) + 
-  stat_summary(fun.y = "mean")
-
-  #scale_fill_viridis_d(option = "A", begin = 0.3, end = 0.8) 
-```
-
-In a box plot, if the first quartile (Q1) and the median are displayed as the same line, it means that the data distribution is highly skewed. The reason for this is that the first quartile (Q1) represents the 25th percentile of the data, and the median represents the 50th percentile. In a symmetric or normally distributed dataset, the median would typically be somewhere in the middle of the interquartile range (IQR), and you'd see a visible gap between the two lines in the box plot.
-
-However, when the Q1 and median lines coincide, it suggests that the lower half of the data is highly concentrated in a narrow range, and the distribution is not symmetric. This is often seen in right-skewed or positively skewed data, where there are some extreme values on the right side of the distribution that stretch the upper whisker, and the lower part of the distribution is more compact.
-
-Conversely, in a left-skewed or negatively skewed distribution, you might see the opposite effect, with the third quartile (Q3) and the median lines coinciding.
-
-Box plots are useful for visualizing the central tendency and spread of data and for identifying skewness and the presence of outliers in a dataset. When the Q1 and median lines coincide, it's a clear visual indicator that your data distribution has a non-symmetric shape and potential outliers on one side of the distribution.
-`
-
 
 ```{r}
 #my_data$my_variable <- log(my_data$my_variable)
-e$logcompound <- log(e$compound)
+#e$logcompound <- log(e$compound)
 #hist(e$logcompound)
 ```
 
@@ -217,9 +100,6 @@ Overall, your model indicates that language and gender have statistically signif
 
 ```{r}
 library(car)
-```
-
-```{r}
 #vif(model1)
 vif(model2)
 vif(model3)
@@ -227,12 +107,10 @@ vif(model3)
 
 ```{r}
 library(lmtest)
-
 # BPG test for heteroscedasticity
 bptest(model1)
 bptest(model2)
 bptest(model3)
-
 ```
 
 ```{r}
@@ -244,70 +122,116 @@ bptest(model3)
 ```{r}
 # interaction between gender and language
 md <- lm(formula = compound ~ language * gender + Art, data = e)
-
 summary(md)
 ```
 Interaction between 'language' and 'gender':
 This interaction term captures whether the relationship between language and sentiment score differs for different genders. It accounts for the possibility that the effect of language on sentiment may be different for males and females.
 
 ```{r}
-library("quanteda")
+library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("topicmodels", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
 library("stm")
 library("tidyverse")
 library("stringi")
 library("lubridate")
+library(e1071)
 ```
-
 
 ```{r}
 combined <- read.csv('FINAL2.csv', stringsAsFactors = F)
-#corpus_combined <- corpus(combined, text_field = "Translated_Comments")
 
-# Assuming 'e' is your data frame
-combined$date <- dmy(combined$date)  # Use 'dmy' to specify the date format
+# making a Year column
+combined$Year <- format(as.Date(combined$date), "%Y")
+comment_counts <- table(combined$Year)
+# using 'dmy' to specify the date format
+combined$date <- dmy(combined$date)  
 combined$day_of_year <- yday(combined$date)
-
-
 corpus_combined <- corpus(combined$Translated_Comments,
-                       docvars = combined[,c("date", "day_of_year",
+                       docvars = combined[,c("date", "day_of_year", "Year",
                                        "gender", "Art")])
-
-# Transforming gender and party into factors
+# transforming gender and party into factors
 combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
 combined$Art <- factor(combined$Art) # factoring is necessary for multiple category variables
-
-```
-`
-
-
-
-```{r}
-# apply the function to your text data
-corpus_combined <- corpus_combined %>%
-  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE, remove_url = TRUE) %>%
-  tokens_remove(stopwords(source = "smart")) %>% 
-  tokens_wordstem() %>%
-  tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
 
 # Tokenisation 
 toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
                remove_numbers = TRUE, remove_url = TRUE) %>%
         tokens_tolower() %>%
-        tokens_remove(c(stopwords(source = "smart"), 'apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna' )) %>% 
-        tokens_wordstem()
+        tokens_remove(c(stopwords(source = "smart"), 'apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna', 'appl', 'valo','amar', 'onek' )) %>% tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex") %>% tokens_wordstem()
 
 # Document Feature Matrix
 dfm_com <- dfm(toks_com) %>% 
-       dfm_trim(min_termfreq = 30)
+       dfm_trim(min_termfreq = 20) # to remove features (terms) that have a term frequency (i.e., the number of times a term appears in the corpus) less than or equal to 20. This step is often used to reduce the dimensionality of the DFM and focus on the most relevant or frequently occurring terms in your text data.
 
 #Adding the gender column to the dataframe:
 #dfm_com$gender <- combined$gender
+```
 
+```{r}
+#tstat_lexdiv_TRR <- textstat_lexdiv(dfm_com)
+tstat_lexdiv_TRR <- textstat_lexdiv(dfm_com, measure=c("TTR"))
+# Reference: https://stackoverflow.com/questions/19697498/mean-warning-argument-is-not-numeric-or-logical-returning-na
+
+mean(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+sd(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+range(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+skewness(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+```
+Approximately 95.8% of the words used are unique or different from each other, while the remaining 4.2% are repetitions or instances of the same word. A higher TTR generally suggests a richer and more diverse vocabulary in the text, while a lower TTR indicates a more repetitive or limited vocabulary.
+```{r}
+tstat_lexdiv_R <- textstat_lexdiv(dfm_com, measure=c("R"))
+mean(tstat_lexdiv_R$R, na.rm = TRUE)
+sd(tstat_lexdiv_R$R, na.rm = TRUE)
+range(tstat_lexdiv_R$R, na.rm = TRUE)
+skewness(tstat_lexdiv_R$R, na.rm = TRUE)
+kurtosis(tstat_lexdiv_R$R, na.rm = TRUE)
+```
+
+```{r}
+tstat_lexdiv_D <- textstat_lexdiv(dfm_com, measure=c("D"))
+mean(tstat_lexdiv_D$D, na.rm = TRUE)
+sd(tstat_lexdiv_D$D, na.rm = TRUE)
+range(tstat_lexdiv_D$D, na.rm = TRUE)
+skewness(tstat_lexdiv_D$D, na.rm = TRUE)
+kurtosis(tstat_lexdiv_D$D, na.rm = TRUE)
+```
+
+```{r}
+tstat_lexdiv_TRR <- textstat_lexdiv(dfm_com, measure=c("TTR", "R", "D"))
+```
+
+
+
+
+```{r}
+tstat_lexdiv_avg <- textstat_lexdiv(tokens(data_corpus_inaugural), measure="MATTR")
+tstat_lexdiv_avg <- textstat_lexdiv(toks_com, measure="MATTR")
+mean(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+sd(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+range(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+skewness(tstat_lexdiv_avg_D$MATTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+
+```
+
+
+```{r}
+
+```
+
+
+# Keyness Analysis
+```{r fig1, fig.height = 3, fig.width = 5}
 # Keyness Analysis for female corpus:
 keyness_posts <- textstat_keyness(dfm_com, target = dfm_com$gender == 1)
 keyness_posts1 <- textstat_keyness(dfm_com, target = dfm_com$gender == 0)
 textplot_keyness(keyness_posts)
 ```
+
 
 
 ```{r fig1, fig.height = 3, fig.width = 3}
@@ -318,138 +242,87 @@ textplot_wordcloud(keyness_posts1, rotation = 0.25,
 ```
 
 ```{r fig1, fig.height = 3, fig.width = 3}
-textplot_wordcloud(keyness_posts, rotation = 0.25, 
+textplot_wordcloud(keyness_posts, rotation = 0.35, 
                    color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
                    max_words = 100)
 ```
 
 ```{r}
+# splitting the dfm by gender:
 gender_docvar <- docvars(dfm_com)$gender
-```
-
-
-```{r}
 dfm_gender_0 <- dfm_com[gender_docvar == 0, ]
 dfm_gender_1 <- dfm_com[gender_docvar == 1, ]
 ```
 
-```{r}
-textplot_xray(kwic(corpus_combined, "beauti"), scale="relative")
-```
 
 ```{r}
+# converting the dfm object to stm object:
 stm_input <- convert(dfm_com, to = "stm")
 ```
 
-
+# structural topic modeling: 
 ```{r}
-stmodel2 <- stm(documents = stm_input$documents, 
+set.seed(321)
+stmodel1 <- stm(documents = stm_input$documents, 
                 vocab = stm_input$vocab,
-                K = 30, 
+                K = 10, 
                 prevalence =~ gender + s(day_of_year),
-               #Hypothesis: We expect that party and day of the year have effect on discussion of certain topics. Note that we don't have dependent variable here. 
+               #Hypothesis: We expect that gender and day of the year have effect on discussion of certain topics.. 
                data = stm_input$meta, 
                verbose = FALSE)
 ```
 
 
-
-```{r}
-# Reference: https://stackoverflow.com/questions/47479522/how-to-create-a-grouped-boxplot-in-r
-#ggplot(e, aes(x = Art, y = compound, fill = factor(gender))) +
-#  geom_boxplot(position = position_dodge(preserve = 'single')) +
- # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
- # scale_fill_viridis_d(option = "A", begin = 0.4, end = 0.7) + stat_summary(fun.y="mean")
+```{r, fig1, fig.height = 2, fig.width = 3}
+plot(stmodel1)
 ```
 
 ```{r}
-#ggplot(e, aes(x = Art, y = compound)) +
-#  geom_boxplot(aes(fill = factor(gender)), position = position_dodge(preserve = 'single')) +
- # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
- # scale_fill_viridis_d(option = "A", begin = 0.4, end = 0.7) +
-  #stat_summary(aes(color = factor(gender)), fun.y = "mean")
+cloud(stmodel1, topic = 1, scale = c(5,.25)) # food or recipe
+cloud(stmodel1, topic = 2, scale = c(5,.25))
+cloud(stmodel1, topic = 3, scale = c(5,.25))
+cloud(stmodel1, topic = 4, scale = c(5,.25))
+cloud(stmodel1, topic = 5, scale = c(5,.25))
+cloud(stmodel1, topic = 6, scale = c(5,.25))
+cloud(stmodel1, topic = 7, scale = c(5,.25))
+cloud(stmodel1, topic = 8, scale = c(5,.25))
+cloud(stmodel1, topic = 9, scale = c(5,.25))
+cloud(stmodel1, topic = 10, scale = c(5,.25))
+```
 
+```{r}
+cloud(stmodel1, topic = 3, scale = c(5,.25))
+```
+
+```{r}
+toLDAvis(stmodel1, docs = stm_input$documents)
+```
+
+
+
+```{r}
+effect_estimates <- estimateEffect(1:10 ~ gender + s(day_of_year), stmodel1, meta = stm_input$meta)
+```
+
+```{r}
+plot(effect_estimates, covariate = "gender", topics = c(1,9,4,10 ),
+     model = stmodel1, method = "difference",
+     cov.value1 = "Male", cov.value2 = "Female",
+     xlab = "More Male ... More Female", 
+     main = "Male and Female",
+     xlim = c(-.1, .1), labeltype = "custom", 
+     custom.labels = c("appearance", "encouragement", "music", "recipe"))
 ```
 
 
 ```{r}
-#library(ggplot2)
-
-# Your existing code for the box plot
-#p <- ggplot(e, aes(x = Art, y = compound, color = factor(gender))) +
- # geom_boxplot(position = position_dodge(preserve = 'single')) +
- # labs(x = "Art Type", y = "Sentiment Score", fill = "Gender") + 
- # scale_fill_viridis_d(option = "C", begin = 0.3, end = 0.8)
-
-# Add scatter points for means and individual data points
-#p + geom_point(stat = "summary", fun.y = "mean", shape = 19, size = 3, position = #position_dodge(width = 0.75)) +
-#  geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.1), shape = 1, size = 2)
-
-```
-
-```{r}
-library("quanteda")
-library("stm")
-library("tidyverse")
-library("stringi")
-library("lubridate")
-```
-
-```{r}
-# Assuming 'e' is your data frame
-combined$date <- dmy(combined$date)  # Use 'dmy' to specify the date format
-combined$day_of_year <- yday(combined$date)
-```
-
-```{r}
-combined[1:5,]
+toLDAvis(stmodel1, docs = stm_input$documents)
 ```
 
 
 
 
-```{r}
-# Transforming gender and party into factors
-combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
-combined$Art <- factor(combined$Art) # factoring is necessary for multiple category variables
 
-```
-
-
-```{r}
-# Assuming 'my_corpus' is your quanteda corpus
-# Check the docvars for the first few documents in the corpus
-combined[1:5, ]
-
-```
-
-
-```{r}
-comment_corpus <- corpus(combined$Translated_Comments,
-                       docvars = combined[,c("date", "day_of_year",
-                                       "gender", "Art")])
-```
-
-```{r}
-# apply the function to your text data
-comment_corpus <- comment_corpus %>%
-  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE, remove_url = TRUE) %>%
-  tokens_remove(stopwords(source = "smart")) %>% 
-  tokens_wordstem() %>%
-  tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
-
-# Tokenisation 
-toks_com <- tokens(comment_corpus, remove_punct = TRUE, remove_symbols = TRUE, 
-               remove_numbers = TRUE, remove_url = TRUE) %>%
-        tokens_tolower() %>%
-        tokens_remove(c(stopwords(source = "smart"), 'apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna' )) %>% 
-        tokens_wordstem()
-
-# Document Feature Matrix
-dfm_com <- dfm(toks_com) %>% 
-       dfm_trim(min_termfreq = 30)
-
-```
 
 
 
@@ -520,21 +393,6 @@ plot(stmodel2)
 ```
 
 
-
-
-```{r}
-effect_estimates <- estimateEffect(1:10 ~ gender, stmodel1, meta = stm_input$meta)
-```
-
-```{r}
-plot(effect_estimates, covariate = "gender", topics = c(2, 8, 6),
-     model = stmodel1, method = "difference",
-     cov.value1 = "Female", cov.value2 = "Male",
-     xlab = "More Male ... More Female", 
-     main = "Male and Female",
-     xlim = c(-.1, .1), labeltype = "custom", 
-     custom.labels = c("song", "appearance", "good"))
-```
 
 
 

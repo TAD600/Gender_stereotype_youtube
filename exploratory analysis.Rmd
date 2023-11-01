@@ -1,0 +1,215 @@
+---
+title: "Descriptive statistics"
+output: html_document
+date: "2023-11-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("stringi")
+library("lubridate")
+library(e1071)
+library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.dictionaries", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textplots", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("stm", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("tidyverse", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("zoo", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library(ggplot2)
+library(viridis)
+```
+
+
+```{r}
+combined <- read.csv('FINAL2.csv', stringsAsFactors = F)
+
+# making a Year column
+combined$Year <- format(as.Date(combined$date), "%Y")
+comment_counts <- table(combined$Year)
+# using 'dmy' to specify the date format
+combined$date <- dmy(combined$date)  
+combined$day_of_year <- yday(combined$date)
+
+
+corpus_combined <- corpus(combined$Translated_Comments,
+                       docvars = combined[,c("date", "day_of_year", "Year",
+                                       "gender", "Art")])
+
+combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
+combined$Art <- factor(combined$Art)
+# transforming gender and party into factors
+ # factoring is necessary for multiple category variables
+
+# Tokenisation 
+toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
+               remove_numbers = TRUE, remove_url = TRUE) %>%
+        tokens_remove(c('apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna', 'appl', 'valo','amar', 'onek' )) %>% tokens_replace(pattern = "[\U0001F600-\U0001F6FF]", replacement = "", valuetype = "regex")
+
+# Document Feature Matrix
+dfm_com <- dfm(toks_com) %>% 
+       dfm_trim(min_termfreq = 2) # to remove features (terms) that have a term frequency (i.e., the number of times a term appears in the corpus) less than or equal to 20. This step is often used to reduce the dimensionality of the DFM and focus on the most relevant or frequently occurring terms in your text data.
+
+#Adding the gender column to the dataframe:
+#dfm_com$gender <- combined$gender
+```
+
+
+
+```{r}
+top_features <- as.data.frame(topfeatures(dfm_com, 500)) 
+top_features <- top_features %>% 
+                mutate(count = `topfeatures(dfm_com, 500)`,
+                       word = rownames(top_features))
+```
+
+```{r}
+ggplot(data = top_features, 
+                    aes(x = 1:500, y = log(count), label = word)) +
+             geom_line() + 
+             geom_text(size = 2.5, hjust = 0, vjust = 0, nudge_x = 0.5) +
+             labs(x = "word", y = "log(count)") + theme_classic()
+```
+
+```{r}
+gender_docvar <- docvars(dfm_com)$gender
+dfm_gender_0 <- dfm_com[gender_docvar == 0, ] #male
+dfm_gender_1 <- dfm_com[gender_docvar == 1, ] #female
+```
+
+
+```{r}
+# Overall corpus
+tstat_lexdiv_TRR <- textstat_lexdiv(dfm_com, measure=c("TTR"))
+# Reference: https://stackoverflow.com/questions/19697498/mean-warning-argument-is-not-numeric-or-logical-returning-na
+
+mean(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+sd(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+range(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+skewness(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_TRR$TTR, na.rm = TRUE)
+```
+
+```{r}
+# # lexical diversity of comments of female artist's contents
+tstat_lexdiv_TRR_m <- textstat_lexdiv(dfm_gender_0, measure=c("TTR"))
+mean(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+sd(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+range(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+skewness(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+```
+
+```{r}
+# lexical diversity of comments of female artist's contents
+tstat_lexdiv_TRR_f <- textstat_lexdiv(dfm_gender_1, measure=c("TTR"))
+
+mean(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+sd(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+range(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+skewness(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+```
+
+
+```{r}
+mdiv <- mean(tstat_lexdiv_TRR_m$TTR, na.rm = TRUE)
+fdiv <- mean(tstat_lexdiv_TRR_f$TTR, na.rm = TRUE)
+```
+
+
+```{r}
+# two-sample t-test
+t.test(tstat_lexdiv_TRR_m$TTR, tstat_lexdiv_TRR_f$TTR)
+```
+
+
+```{r}
+#textstat_lexdiv_ttr <- textstat_lexdiv(dfm_com, measure = "TTR")
+textstat_lexdiv_msttr <- textstat_lexdiv(tokens(corpus_combined), measure = "MSTTR")
+mean(textstat_lexdiv_msttr$MSTTR, na.rm = TRUE)
+```
+
+```{r}
+# creating separate corpora for male and female contents
+library(tm)  
+corpus_male <- corpus_subset(corpus_combined, gender == 0)
+corpus_female <- corpus_subset(corpus_combined, gender == 1)
+```
+
+```{r}
+# readbality of overall corpus
+stat_read <- textstat_readability(corpus_combined,
+                     measure = c("Flesch.Kincaid", "FOG"))
+
+stat_read
+mean(stat_read$Flesch.Kincaid, na.rm = TRUE)
+mean(stat_read$FOG, na.rm = TRUE)
+```
+
+```{r}
+# readbality of female corpus
+stat_read_f <- textstat_readability(corpus_female,
+                     measure = c("Flesch.Kincaid", "FOG"))
+
+#stat_read_f
+FK_f <- mean(stat_read_f$Flesch.Kincaid, na.rm = TRUE)
+FOG_f <-mean(stat_read_f$FOG, na.rm = TRUE)
+FK_f
+FOG_f
+```
+
+
+
+```{r}
+# readbality of male corpus
+stat_read_m <- textstat_readability(corpus_male,
+                     measure = c("Flesch.Kincaid", "FOG"))
+
+#stat_read_m
+FK_m <- mean(stat_read_m$Flesch.Kincaid, na.rm = TRUE)
+FOG_m <-mean(stat_read_m$FOG, na.rm = TRUE)
+FK_m
+FOG_m
+```
+
+
+```{r}
+t.test(stat_read_m$Flesch.Kincaid, stat_read_f$Flesch.Kincaid)
+t.test(stat_read_m$FOG, stat_read_f$FOG)
+```
+
+```{r}
+#tstat_lexdiv_avg <- textstat_lexdiv(tokens(data_corpus_inaugural), measure="MATTR")
+tstat_lexdiv_avg <- textstat_lexdiv(toks_com, measure="MATTR")
+mean(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+sd(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+range(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+skewness(tstat_lexdiv_avg_D$MATTR, na.rm = TRUE)
+kurtosis(tstat_lexdiv_avg$MATTR, na.rm = TRUE)
+```
+
+# Keyness Analysis
+
+```{r fig1, fig.height = 3, fig.width = 5}
+# Keyness Analysis for female corpus:
+keyness_posts <- textstat_keyness(dfm_com, target = dfm_com$gender == 1)
+keyness_posts1 <- textstat_keyness(dfm_com, target = dfm_com$gender == 0)
+textplot_keyness(keyness_posts)
+```
+
+
+```{r}
+textplot_wordcloud(keyness_posts1, rotation = 0.35, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 100)
+textplot_wordcloud(keyness_posts, rotation = 0.35, 
+                   color = rev(RColorBrewer::brewer.pal(8, "RdBu")),
+                   max_words = 100)
+```
+
+
+

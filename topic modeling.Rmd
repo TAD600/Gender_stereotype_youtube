@@ -28,34 +28,16 @@ library("lubridate")
 
 ```{r}
 combined <- read.csv('FINAL2.csv', stringsAsFactors = F)
-```
 
-```{r}
 # Reference: https://lubridate.tidyverse.org/
 combined$date <- dmy(combined$date) 
-```
-
-```{r}
 combined$year <- year(combined$date)
-```
-
-```{r}
 combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
-```
-
-```{r}
 combined$Art <- factor(combined$Art)
-```
-
-
-
-```{r}
 corpus_combined <- corpus(combined$Translated_Comments,
                        docvars = combined[,c("date", "year",
                                        "gender", "Art")])
-```
 
-```{r}
 # Tokenisation 
 toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
                remove_numbers = TRUE, remove_url = TRUE) %>%
@@ -69,11 +51,39 @@ dfm_com <- dfm(toks_com) %>%
        dfm_trim(min_termfreq = 2)
 ```
 
+```{r}
+?wordcloud
+```
+
+
+
 
 ```{r}
 # converting the dfm object to stm object:
 stm <- convert(dfm_com, to = "stm")
 ```
+
+```{r}
+k_search_output <- searchK(stm$documents, stm$vocab,
+                           K = c(5,10,15,20,25), data = stm$meta,
+                           verbose = FALSE, heldout.seed = 123)
+
+k_search_output
+```
+
+```{r}
+plot(k_search_output)
+```
+
+```{r}
+#saving it as a RDS file
+saveRDS(k_search_output, "k_search_output.rds")
+# Loading the saved k_search_output
+#loaded_k_search_output <- readRDS("k_search_output.rds")
+
+```
+
+
 
 ```{r}
 #ntoken(corpus_combined) %>% sum()
@@ -97,19 +107,6 @@ stmodel <- stm(documents = stm$documents,
 
 
 ```{r}
-cloud(stmodel, topic = 1, scale = c(5,.25)) # food or recipe
-cloud(stmodel, topic = 2, scale = c(5,.25)) # painting
-cloud(stmodel, topic = 3, scale = c(5,.25)) # loving words
-cloud(stmodel, topic = 4, scale = c(5,.25)) # respecting women
-cloud(stmodel, topic = 5, scale = c(5,.25)) # music
-cloud(stmodel, topic = 6, scale = c(5,.25)) # praising
-cloud(stmodel, topic = 7, scale = c(5,.25)) # dance
-cloud(stmodel, topic = 8, scale = c(5,.25)) # verbs in cooking
-cloud(stmodel, topic = 9, scale = c(5,.25)) # encouragement
-cloud(stmodel, topic = 10, scale = c(5,.25)) # appearance
-```
-
-```{r}
 saveRDS(stmodel, file = "stm_youtube.rds")
 ```
 
@@ -123,55 +120,96 @@ toLDAvis(stmodel, docs = stm$documents)
 effect_estimates <- estimateEffect(1:10 ~ gender + s(year), stmodel, meta = stm$meta)
 ```
 
+
+
 ```{r}
-effect_estimates1 <- estimateEffect(1:10 ~ gender, stmodel, meta = stm$meta)
+labelTopics(stmodel, topics = 1, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 2, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 3, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 4, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 5, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 6, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 7, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 8, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 9, n = 10, frexweight = 0.5)
+labelTopics(stmodel, topics = 10, n = 10, frexweight = 0.5)
+```
+
+Emantic Validation of the topics:
+
+
+```{r}
+cloud(stmodel, topic = 1, scale = c(3,.25)) # Culinary
+cloud(stmodel, topic = 2, scale = c(3,.25)) # painting
+cloud(stmodel, topic = 3, scale = c(3,.25)) # Emotive words
+cloud(stmodel, topic = 4, scale = c(3,.25)) # Appreciating Women
+cloud(stmodel, topic = 5, scale = c(3,.25)) # Music1
+#cloud(stmodel, topic = 6, scale = c(5,.25)) 
+cloud(stmodel, topic = 7, scale = c(3,.25)) # Dancing
+#cloud(stmodel, topic = 8, scale = c(5,.25)) 
+cloud(stmodel, topic = 9, scale = c(3,.25)) #Music 2
+cloud(stmodel, topic = 10, scale = c(3,.25)) # Appreciating Appearance
 ```
 
 
-```{r}
-summary(effect_estimates1)
-```
 
-
+Predictive validation of the topics:
 
 ```{r}
-cloud(stmodel, topic = 1, scale = c(5,.25)) # ingredients or recipe
-cloud(stmodel, topic = 2, scale = c(5,.25)) # painting
-cloud(stmodel, topic = 3, scale = c(5,.25)) # loving words
-cloud(stmodel, topic = 4, scale = c(5,.25)) # respecting women
-cloud(stmodel, topic = 5, scale = c(5,.25)) # music
-cloud(stmodel, topic = 6, scale = c(5,.25)) # praising
-cloud(stmodel, topic = 7, scale = c(5,.25)) # dance
-cloud(stmodel, topic = 8, scale = c(5,.25)) #  cooking
-cloud(stmodel, topic = 9, scale = c(5,.25)) # encouragement
-cloud(stmodel, topic = 10, scale = c(5,.25)) # appearance
-```
-
-
-
-
-```{r}
-plot(effect_estimates, covariate = "gender", topics = c(1,2,3,4,5,6,7,8,9,10),
+plot(effect_estimates, covariate = "gender", topics = c(1, 2, 3, 4, 5, 7, 9,10),
      model = stmodel, method = "difference",
      cov.value1 = "Male", cov.value2 = "Female",
      xlab = "More Female ... More Male", 
      main = "Female and Male",
      xlim = c(-.2, .2), labeltype = "custom", 
-     custom.labels = c("Ingredients and Recipe","Painting","Emotive words","Respecting Women","Music","Video watching","Dancing","Cooking","Motivating singers","Appreciating Appearance"))
+     custom.labels = c("Culinary","Painting","Emotive words","Appreciating Women","Music1","Dancing","Music 2","Appreciating Appearance"),
+    ci.level=.99)
 ```
 
 ```{r}
-# topic labels
-topic_labels <- labelTopics(stmodel)
-
-# finding the index of the topic  based on its label
-topic_label_of_interest <- "Your Topic Label"  # Replacing with your actual topic label
-topic_number <- which(topic_labels$term == topic_label_of_interest)
-
-
-print(topic_labels)
-
+table(combined$type_gender(combined$compound)) 
+# "female singer", 1 
+# "male singer", 2
+# "female actor", 3, 
+# "male actor", 4,
+# "female dancer", 5,
+# "male dancer", 6,
+# "female painter", 7,
+# "male painter", 8,
+# "female chef", 9,
+# "male chef", 10,
 ```
+
+```{r}
+11713+ 64264+ 2390+ 3534 + 12548+ 89+ 18535+ 5181+ 24334+ 46922 
+```
+
+
+```{r}
+theta_matrix <- stmodel$theta
+topic_10_proportions <- theta_matrix[, 10]  # Replace 4 with the desired topic number
+sorted_documents <- order(topic_10_proportions, decreasing = TRUE)
+```
+
+```{r}
+num_documents_to_retrieve <- 10  # Adjust this number as needed
+top_documents <- combined$Comments[sorted_documents[1:num_documents_to_retrieve]]
+```
+
+```{r}
+top_documents
+```
+
+
+```{r}
+semanticCoherence(stmodel, stm)
+```
+
+
+
+
+
+
 
 
 

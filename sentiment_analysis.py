@@ -27,6 +27,9 @@ warnings.filterwarnings("ignore",category=DeprecationWarning)
 
 final = pd.read_csv('Final_Youtube.csv')
 
+
+
+
 # Reference: https://towardsdatascience.com/sentimental-analysis-using-vader-a3415fef7664
 sid = SentimentIntensityAnalyzer()
 final['Translated_Comments'].fillna('', inplace=True)
@@ -63,10 +66,13 @@ plt.pie(sizes, labels = labels,autopct='%1.2f%%', colors=sns.color_palette('Set2
 plt.axis('equal')
 plt.show()
 
+final['date'] = pd.to_datetime(final['date'])  
+final['year'] = final['date'].dt.year  
+
 # Line plot
-grouped = final.groupby('year_group')['compound'].mean()
-grouped = final.pivot_table(index='year_group', columns=None, values='compound', aggfunc='mean')
-grouped_gender= final.groupby(['year_group', 'gender'])['compound'].mean().unstack()
+grouped = final.groupby('year')['compound'].mean()
+grouped = final.pivot_table(index='year', columns=None, values='compound', aggfunc='mean')
+grouped_gender= final.groupby(['year', 'gender'])['compound'].mean().unstack()
 cmm = pd.concat([grouped, grouped_gender], axis=1)
 # Reference: https://www.kdnuggets.com/2022/11/4-ways-rename-pandas-columns.html
 cmm.rename(columns={"compound": "Overall"}, inplace=True)

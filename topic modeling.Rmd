@@ -1,0 +1,177 @@
+---
+title: "Descriptive statistics & topic modeling"
+output: html_document
+date: "2023-10-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library("quanteda", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textstats",quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.dictionaries", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("quanteda.textplots", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("stm", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("tidyverse", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+library("lubridate")
+#library("zoo", quietly = TRUE, warn.conflicts = FALSE, verbose = FALSE)
+#library(ggplot2)
+#library(viridis)
+```
+
+
+
+# Topic Modelling
+
+```{r}
+combined <- read.csv('FINAL2.csv', stringsAsFactors = F)
+```
+
+```{r}
+# Reference: https://lubridate.tidyverse.org/
+combined$date <- dmy(combined$date) 
+```
+
+```{r}
+combined$year <- year(combined$date)
+```
+
+```{r}
+combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
+```
+
+```{r}
+combined$Art <- factor(combined$Art)
+```
+
+
+
+```{r}
+corpus_combined <- corpus(combined$Translated_Comments,
+                       docvars = combined[,c("date", "year",
+                                       "gender", "Art")])
+```
+
+```{r}
+# Tokenisation 
+toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
+               remove_numbers = TRUE, remove_url = TRUE) %>%
+        tokens_tolower() %>%
+        tokens_remove(c('apnar', 'r', 'khub', 'apu', 'ei', 'e', 'a_href', 'ahm', 'na', 'ki', 'er', 'i', 'na', 's', 'href', 'amr', 'muza', 'xefer', 'm', 'a', 'deepanita', 'ai', 'm', 'chai', 'ridy', 'amr', 'bihu', 'ridi', 'farjana', 'danc', 'latif', 'curri', 've', 'hoy', 'ur', 'ar', 'pls', 'plz', 'onk', 'liza', 'bt', '#name', 'nusrat', 'umm', 'safa', 'manna', 'appl', 'valo','amar', 'onek' )) 
+```
+
+```{r}
+# Document Feature Matrix
+dfm_com <- dfm(toks_com) %>% 
+       dfm_trim(min_termfreq = 2)
+```
+
+
+```{r}
+# converting the dfm object to stm object:
+stm <- convert(dfm_com, to = "stm")
+```
+
+```{r}
+#ntoken(corpus_combined) %>% sum()
+#ntype(corpus_combined) %>% sum()
+```
+
+
+# it started 6:19PM at 1 Nov, 2023
+
+```{r}
+set.seed(2)
+stmodel <- stm(documents = stm$documents, 
+                vocab = stm$vocab,
+                K = 10, 
+                prevalence =~ gender + s(year),
+               #Hypothesis: We expect that gender and yes have effect on discussion of certain topics.
+               data = stm$meta, 
+               verbose = FALSE)
+```
+
+
+
+```{r}
+cloud(stmodel, topic = 1, scale = c(5,.25)) # food or recipe
+cloud(stmodel, topic = 2, scale = c(5,.25)) # painting
+cloud(stmodel, topic = 3, scale = c(5,.25)) # loving words
+cloud(stmodel, topic = 4, scale = c(5,.25)) # respecting women
+cloud(stmodel, topic = 5, scale = c(5,.25)) # music
+cloud(stmodel, topic = 6, scale = c(5,.25)) # praising
+cloud(stmodel, topic = 7, scale = c(5,.25)) # dance
+cloud(stmodel, topic = 8, scale = c(5,.25)) # verbs in cooking
+cloud(stmodel, topic = 9, scale = c(5,.25)) # encouragement
+cloud(stmodel, topic = 10, scale = c(5,.25)) # appearance
+```
+
+```{r}
+saveRDS(stmodel, file = "stm_youtube.rds")
+```
+
+
+```{r}
+toLDAvis(stmodel, docs = stm$documents)
+```
+
+
+```{r}
+effect_estimates <- estimateEffect(1:10 ~ gender + s(year), stmodel, meta = stm$meta)
+```
+
+```{r}
+effect_estimates1 <- estimateEffect(1:10 ~ gender, stmodel, meta = stm$meta)
+```
+
+
+```{r}
+summary(effect_estimates1)
+```
+
+
+
+```{r}
+cloud(stmodel, topic = 1, scale = c(5,.25)) # ingredients or recipe
+cloud(stmodel, topic = 2, scale = c(5,.25)) # painting
+cloud(stmodel, topic = 3, scale = c(5,.25)) # loving words
+cloud(stmodel, topic = 4, scale = c(5,.25)) # respecting women
+cloud(stmodel, topic = 5, scale = c(5,.25)) # music
+cloud(stmodel, topic = 6, scale = c(5,.25)) # praising
+cloud(stmodel, topic = 7, scale = c(5,.25)) # dance
+cloud(stmodel, topic = 8, scale = c(5,.25)) #  cooking
+cloud(stmodel, topic = 9, scale = c(5,.25)) # encouragement
+cloud(stmodel, topic = 10, scale = c(5,.25)) # appearance
+```
+
+
+
+
+```{r}
+plot(effect_estimates, covariate = "gender", topics = c(1,2,3,4,5,6,7,8,9,10),
+     model = stmodel, method = "difference",
+     cov.value1 = "Male", cov.value2 = "Female",
+     xlab = "More Female ... More Male", 
+     main = "Female and Male",
+     xlim = c(-.2, .2), labeltype = "custom", 
+     custom.labels = c("Ingredients and Recipe","Painting","Emotive words","Respecting Women","Music","Video watching","Dancing","Cooking","Motivating singers","Appreciating Appearance"))
+```
+
+```{r}
+# topic labels
+topic_labels <- labelTopics(stmodel)
+
+# finding the index of the topic  based on its label
+topic_label_of_interest <- "Your Topic Label"  # Replacing with your actual topic label
+topic_number <- which(topic_labels$term == topic_label_of_interest)
+
+
+print(topic_labels)
+
+```
+
+
+

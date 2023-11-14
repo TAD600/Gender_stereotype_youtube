@@ -55,6 +55,9 @@ dfm_com <- dfm(toks_com) %>%
 ?wordcloud
 ```
 
+```{r}
+write.csv(combined, "FINAL3.csv")
+```
 
 
 
@@ -77,9 +80,9 @@ plot(k_search_output)
 
 ```{r}
 #saving it as a RDS file
-saveRDS(k_search_output, "k_search_output.rds")
+#saveRDS(k_search_output, "k_search_output.rds")
 # Loading the saved k_search_output
-#loaded_k_search_output <- readRDS("k_search_output.rds")
+loaded_k_search_output <- readRDS("k_search_output.rds")
 
 ```
 
@@ -110,6 +113,9 @@ stmodel <- stm(documents = stm$documents,
 saveRDS(stmodel, file = "stm_youtube.rds")
 ```
 
+```{r}
+stmodel <- readRDS("stm_youtube.rds")
+```
 
 ```{r}
 toLDAvis(stmodel, docs = stm$documents)
@@ -119,6 +125,11 @@ toLDAvis(stmodel, docs = stm$documents)
 ```{r}
 effect_estimates <- estimateEffect(1:10 ~ gender + s(year), stmodel, meta = stm$meta)
 ```
+
+```{r}
+summary(effect_estimates)
+```
+
 
 
 
@@ -135,7 +146,7 @@ labelTopics(stmodel, topics = 9, n = 10, frexweight = 0.5)
 labelTopics(stmodel, topics = 10, n = 10, frexweight = 0.5)
 ```
 
-Emantic Validation of the topics:
+Semantic Validation of the topics:
 
 
 ```{r}
@@ -200,15 +211,14 @@ top_documents <- combined$Comments[sorted_documents[1:num_documents_to_retrieve]
 top_documents
 ```
 
-
 ```{r}
-semanticCoherence(stmodel, stm)
+effect <- estimateEffect(1:10 ~ gender, stmodel, meta = stm$meta)
 ```
 
 
-
-
-
+```{r}
+summary(effect)
+```
 
 
 

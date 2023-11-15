@@ -42,7 +42,7 @@ e$type_gender <- ifelse(e$Gender == "female singer", 1,
 e <- e %>%
   mutate(language = ifelse(Language %in% c("Bangla"), 1, 0))
 
-# Create the e$type column based on Gender
+# Creating the arttype column based on Gender
 e$arttype <- ifelse(e$Gender == "female singer", 5,
                  ifelse(e$Gender == "male singer", 5,
                         ifelse(e$Gender == "female actor", 2, 

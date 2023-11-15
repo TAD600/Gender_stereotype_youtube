@@ -62,7 +62,7 @@ write.csv(combined, "FINAL3.csv")
 
 
 ```{r}
-# converting the dfm object to stm object:
+# Converting the dfm object to stm object:
 stm <- convert(dfm_com, to = "stm")
 ```
 
@@ -82,10 +82,9 @@ plot(k_search_output)
 #saving it as a RDS file
 #saveRDS(k_search_output, "k_search_output.rds")
 # Loading the saved k_search_output
-loaded_k_search_output <- readRDS("k_search_output.rds")
+#loaded_k_search_output <- readRDS("k_search_output.rds")
 
 ```
-
 
 
 ```{r}
@@ -94,7 +93,6 @@ loaded_k_search_output <- readRDS("k_search_output.rds")
 ```
 
 
-# it started 6:19PM at 1 Nov, 2023
 
 ```{r}
 set.seed(2)
@@ -102,7 +100,7 @@ stmodel <- stm(documents = stm$documents,
                 vocab = stm$vocab,
                 K = 10, 
                 prevalence =~ gender + s(year),
-               #Hypothesis: We expect that gender and yes have effect on discussion of certain topics.
+               #Hypothesis: We expect that gender has effect on discussion of certain topics.
                data = stm$meta, 
                verbose = FALSE)
 ```
@@ -191,25 +189,7 @@ table(combined$type_gender(combined$compound))
 # "male chef", 10,
 ```
 
-```{r}
-11713+ 64264+ 2390+ 3534 + 12548+ 89+ 18535+ 5181+ 24334+ 46922 
-```
 
-
-```{r}
-theta_matrix <- stmodel$theta
-topic_10_proportions <- theta_matrix[, 10]  # Replace 4 with the desired topic number
-sorted_documents <- order(topic_10_proportions, decreasing = TRUE)
-```
-
-```{r}
-num_documents_to_retrieve <- 10  # Adjust this number as needed
-top_documents <- combined$Comments[sorted_documents[1:num_documents_to_retrieve]]
-```
-
-```{r}
-top_documents
-```
 
 ```{r}
 effect <- estimateEffect(1:10 ~ gender, stmodel, meta = stm$meta)

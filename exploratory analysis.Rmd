@@ -38,12 +38,10 @@ combined$day_of_year <- yday(combined$date)
 corpus_combined <- corpus(combined$Translated_Comments,
                        docvars = combined[,c("date", "day_of_year", "Year",
                                        "gender", "Art")])
-
+# transforming gender and party into factors
+ # factoring for multiple category variables
 combined$gender <- ifelse(combined$gender == 0, "Male", "Female")
 combined$Art <- factor(combined$Art)
-# transforming gender and party into factors
- # factoring is necessary for multiple category variables
-
 # Tokenisation 
 toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE, 
                remove_numbers = TRUE, remove_url = TRUE) %>%
@@ -51,10 +49,7 @@ toks_com <- tokens(corpus_combined, remove_punct = TRUE, remove_symbols = TRUE,
 
 # Document Feature Matrix
 dfm_com <- dfm(toks_com) %>% 
-       dfm_trim(min_termfreq = 2) # to remove features (terms) that have a term frequency (i.e., the number of times a term appears in the corpus) less than or equal to 20. This step is often used to reduce the dimensionality of the DFM and focus on the most relevant or frequently occurring terms in your text data.
-
-#Adding the gender column to the dataframe:
-#dfm_com$gender <- combined$gender
+       dfm_trim(min_termfreq = 2) 
 ```
 
 

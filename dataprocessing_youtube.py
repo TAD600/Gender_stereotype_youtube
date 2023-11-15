@@ -122,7 +122,7 @@ def remove_emojis(text):
 
 
 
-# Loading the spaCy language model
+# loading the spaCy language model
 nlp = spacy.load("en_core_web_sm") 
 
 def lemmatize_with_space(text):
@@ -147,5 +147,5 @@ com.reset_index(drop=True, inplace=True)
 # removing the duplicates
 comment = comment.drop_duplicates(subset='Comments')
 
-# Remove URLs
+# removing URLs
 comment['Comments'] = comment['Comments'].apply(lambda x: re.sub(r"http\S+", "", str(x)))

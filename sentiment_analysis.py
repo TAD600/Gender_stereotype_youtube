@@ -33,9 +33,9 @@ final = pd.read_csv('Final_Youtube.csv')
 # Reference: https://towardsdatascience.com/sentimental-analysis-using-vader-a3415fef7664
 sid = SentimentIntensityAnalyzer()
 final['Translated_Comments'].fillna('', inplace=True)
-# Applying the sentiment analysis function to the 'Translated_Comments' column
+# applying the sentiment analysis function to the 'Translated_Comments' column
 final['sentiment_scores'] = final['Translated_Comments'].apply(lambda review: sid.polarity_scores(review))
-# Extracting the compound sentiment scores to a new column
+# extracting the compound sentiment scores to a new column
 final['compound'] = final['sentiment_scores'].apply(lambda score_dict: score_dict['compound'])
 final['Sentiment'] = final['compound'].apply(lambda c: 'pos' if c >=0 else 'neg')
 mean_sentiment_score = final['compound'].mean()
@@ -80,7 +80,7 @@ cmm.rename(columns={0: "Male"}, inplace=True)
 cmm.rename(columns={1: "Female"}, inplace=True)
 
 lines = cmm.plot.line()
-# Customize the plot
+# customizing the plot
 #plt.title("Public sentiment over the Years regarding artists in YouTube", fontsize= 12)
 plt.xlabel("Year", fontsize=12)
 plt.ylabel("Mean sentiment score per year", fontsize=10)

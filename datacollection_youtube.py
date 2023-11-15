@@ -86,7 +86,7 @@ def get_video_top_level_comments(api_key, channel_id, video_id, max_results=100)
         api_service_name, api_version, developerKey=api_key
     )
 
-    # Initialize a list to store data
+    # Starting a list to store data
     video_comments_data = []
     next_page_token = None
 
@@ -110,7 +110,7 @@ def get_video_top_level_comments(api_key, channel_id, video_id, max_results=100)
             comment_text = comment_data['textDisplay']
             comment_date = comment_data['publishedAt']  # Extract comment date
 
-            # Append the data to the list, including the Video ID, Video URL, and Comment Date
+            # appending the data to the list
             video_comments_data.append({
                 "Index": index,
                 "Channel ID": channel_id,

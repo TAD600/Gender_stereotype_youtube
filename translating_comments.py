@@ -20,7 +20,6 @@ retry_delay = 5  # 5 seconds between retries
 for _ in range(max_retries):
     try:
         response = requests.get(url, timeout=10)
-        # Handle the response
         break  # If successful, exit the loop
     except requests.exceptions.ReadTimeout as e:
         print(f"Read operation to {url} timed out. Retrying...")
@@ -40,7 +39,7 @@ def translate_e(text):
             print(f"Translation attempt failed. Retrying...")
             time.sleep(retry_delay)
 
-    # If all retries fail, handle the error or log it as needed
+    # If all retries fail, handle the error as failed
     return "Translation failed"
 
 

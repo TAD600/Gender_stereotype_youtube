@@ -15,7 +15,7 @@ m_compound = m['compound']
 f_compound = f['compound']
 
 # Mann-Whitney U Test 
-
+# Gender
 result = mannwhitneyu(f_compound, m_compound, alternative='two-sided')
 U_statistic = result.statistic
 n1 = len(f_compound)
@@ -31,6 +31,7 @@ print(f"Z Statistic: {z_statistic}")
 print(f"P-Value: {result.pvalue}")
 print(f"Effect size: {r}")
 
+# Language
 b = test[test['language'] == 1]
 e = test[test['language'] == 0] 
 b_compound = b['compound']
@@ -52,8 +53,7 @@ print(f"P-Value: {result1.pvalue}")
 print(f"Effect size: {r1}")
 
 # Kruskal-Wallis H Test 
-
-# Perform the Kruskal-Wallis H test
+# Gender
 h_statistic3, p_value = kruskal(f_compound, m_compound)
 k = 2
 n = len(test)
@@ -64,7 +64,7 @@ print(f"chi square: {h_statistic3}")
 print(f"P-Value: {p_value}")
 print(f"Effect size: {effect}")
 
-# Perform the Kruskal-Wallis H test
+# Language
 h_statistic4, p_value1 = kruskal(b_compound, e_compound)
 k = 2
 n = len(test)
